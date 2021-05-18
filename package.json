@@ -1,0 +1,18 @@
+{
+  "name": "mdn-speed-compete",
+  "version": "1.0.0",
+  "private": true,
+  "main": "index.js",
+  "license": "MPL-2.0",
+  "scripts": {
+    "merge-summaries": "node --unhandled-rejections=strict src/index.js merge-summaries",
+    "roll-reports": "node --unhandled-rejections=strict src/index.js roll-reports",
+    "report-reports": "node --unhandled-rejections=strict src/index.js report-reports"
+  },
+  "dependencies": {
+    "@caporal/core": "2.0.2",
+    "glob": "7.1.7",
+    "kleur": "4.1.4",
+    "lighthouse-batch": "6.1.0"
+  }
+}
