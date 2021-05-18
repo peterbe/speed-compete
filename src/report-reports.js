@@ -4,6 +4,16 @@ const path = require("path");
 const kleur = require("kleur");
 const glob = require("glob");
 
+const KEYS = [
+  "performance__score",
+  "first-contentful-paint",
+  "interactive",
+  "speed-index",
+  "total-blocking-time",
+  "largest-contentful-paint",
+  "cumulative-layout-shift",
+];
+
 async function main(reportfolder, logger) {
   const files = glob.sync(path.join(reportfolder, "*.report.json"));
   if (!files.length) {
@@ -49,6 +59,11 @@ async function main(reportfolder, logger) {
     }
     for (const reportFile of other) {
       const report = JSON.parse(fs.readFileSync(reportFile));
+      if (report.runtimeError) {
+        console.log(`Skipping report ${reportFile} because of runtime error`);
+        console.log(report.runtimeError);
+        continue;
+      }
       audits.get("performance__score").push({
         score: report.categories.performance.score,
         numericValue: report.categories.performance.score,
@@ -56,6 +71,10 @@ async function main(reportfolder, logger) {
       });
       for (const [key, value] of Object.entries(report.audits)) {
         if (audits.has(key)) {
+          if (value.numericValue === undefined) {
+            throw new Error("BAD REPORT!");
+          }
+
           audits.get(key).push({
             score: value.score,
             numericValue: value.numericValue,
@@ -67,16 +86,6 @@ async function main(reportfolder, logger) {
     urls.set(url, audits);
   }
 
-  const KEYS = [
-    "performance__score",
-    "first-contentful-paint",
-    "interactive",
-    "speed-index",
-    "total-blocking-time",
-    "largest-contentful-paint",
-    "cumulative-layout-shift",
-  ];
-
   const auditSummaries = new Map();
   for (const [url, audits] of urls) {
     auditSummaries.set(url, new Map());
@@ -87,7 +96,6 @@ async function main(reportfolder, logger) {
         .get(url)
         .get(key)
         .set("min", getLowest(...values));
-      auditSummaries.get(url).get(key).set("mean", getAverage(values));
       auditSummaries.get(url).get(key).set("median", getMedian(values));
     }
   }
@@ -104,15 +112,9 @@ async function main(reportfolder, logger) {
       "|",
       kleur.bold("BEST".padEnd(PAD + 1)),
       "|",
-      kleur.bold("MEAN".padEnd(PAD + 1)),
-      "|",
       kleur.bold("MEDIAN".padEnd(PAD))
     );
     for (const key of KEYS) {
-      // const values = audits.get(key).map((v) => v.numericValue);
-      // const best = getLowest(...values);
-      // const mean = getAverage(values);
-      // const median = getMedian(values);
       const min = auditSummaries.get(url).get(key).get("min");
       const minComparison = getComparison(
         auditSummaries,
@@ -120,16 +122,6 @@ async function main(reportfolder, logger) {
         key,
         "min",
         min,
-        false,
-        PAD / 2
-      );
-      const mean = auditSummaries.get(url).get(key).get("mean");
-      const meanComparison = getComparison(
-        auditSummaries,
-        url,
-        key,
-        "mean",
-        mean,
         false,
         PAD / 2
       );
@@ -149,9 +141,6 @@ async function main(reportfolder, logger) {
         "|",
         format(min, unit, key).padEnd(PAD / 2),
         minComparison,
-        "|",
-        format(mean, unit, key).padEnd(PAD / 2),
-        meanComparison,
         "|",
         format(median, unit, key).padEnd(PAD / 2),
         medianComparison

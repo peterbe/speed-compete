@@ -13,6 +13,6 @@
     "@caporal/core": "2.0.2",
     "glob": "7.1.7",
     "kleur": "4.1.4",
-    "lighthouse-batch": "6.1.0"
+    "lighthouse-batch": "7.1.0"
   }
 }
