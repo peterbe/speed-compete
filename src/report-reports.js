@@ -14,6 +14,8 @@ const KEYS = [
   "cumulative-layout-shift",
 ];
 
+const BIGGER_IS_BETTER = ["performance__score"];
+
 async function main(reportfolder, logger) {
   const files = glob.sync(path.join(reportfolder, "*.report.json"));
   if (!files.length) {
@@ -74,7 +76,6 @@ async function main(reportfolder, logger) {
           if (value.numericValue === undefined) {
             throw new Error("BAD REPORT!");
           }
-
           audits.get(key).push({
             score: value.score,
             numericValue: value.numericValue,
@@ -90,12 +91,13 @@ async function main(reportfolder, logger) {
   for (const [url, audits] of urls) {
     auditSummaries.set(url, new Map());
     for (const key of KEYS) {
+      const biggerIsBetter = BIGGER_IS_BETTER.includes(key);
       auditSummaries.get(url).set(key, new Map());
       const values = audits.get(key).map((v) => v.numericValue);
-      auditSummaries
-        .get(url)
-        .get(key)
-        .set("min", getLowest(...values));
+      const best = biggerIsBetter
+        ? getHighest(...values)
+        : getLowest(...values);
+      auditSummaries.get(url).get(key).set("best", best);
       auditSummaries.get(url).get(key).set("median", getMedian(values));
     }
   }
@@ -115,14 +117,15 @@ async function main(reportfolder, logger) {
       kleur.bold("MEDIAN".padEnd(PAD))
     );
     for (const key of KEYS) {
-      const min = auditSummaries.get(url).get(key).get("min");
+      const biggerIsBetter = BIGGER_IS_BETTER.includes(key);
+      const min = auditSummaries.get(url).get(key).get("best");
       const minComparison = getComparison(
         auditSummaries,
         url,
         key,
-        "min",
+        "best",
         min,
-        false,
+        biggerIsBetter,
         PAD / 2
       );
       const median = auditSummaries.get(url).get(key).get("median");
@@ -132,7 +135,7 @@ async function main(reportfolder, logger) {
         key,
         "median",
         median,
-        false,
+        biggerIsBetter,
         PAD / 2
       );
       const unit = audits.get(key)[0].numericUnit;
@@ -159,7 +162,6 @@ function getComparison(
   biggerIsBetter = false,
   PAD
 ) {
-  const other = [];
   for (const [url_, audits] of auditSummaries) {
     if (url_ === url) continue;
     for (const [key_, numbers] of audits) {
@@ -174,7 +176,8 @@ function getComparison(
 }
 
 function formatRatio(r, biggerIsBetter, PAD) {
-  const percentage = `${(100 * r).toFixed(1)}%`.padEnd(PAD);
+  const p = (100 * r - 100) * (biggerIsBetter ? 1 : -1);
+  const percentage = `${p > 0 ? "+" : ""}${p.toFixed(1)}%`.padEnd(PAD);
   if (biggerIsBetter) {
     if (r > 1) {
       return kleur.green(percentage);
@@ -196,6 +199,10 @@ function getLowest(...numbers) {
   return Math.min(...numbers);
 }
 
+function getHighest(...numbers) {
+  return Math.max(...numbers);
+}
+
 function format(number, unit, key) {
   function inner(number, unit, key) {
     if (unit === "millisecond") {
@@ -209,10 +216,6 @@ function format(number, unit, key) {
     }
   }
   return inner(number, unit, key);
-}
-
-function getAverage(arr) {
-  return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
 function getMedian(values) {

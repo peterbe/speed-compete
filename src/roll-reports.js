@@ -12,13 +12,17 @@ async function main(reportfolder, logger) {
     const jsonFile = file.replace(".report.html", ".report.json");
     const newJsonFile = `${jsonFile}.${next}`;
     fs.renameSync(file, newName);
-    logger.info(`Renamed ${file} to ${newName}`);
+    logger.info(`Renamed ${bname(file)} to ${bname(newName)}`);
     fs.renameSync(jsonFile, newJsonFile);
-    logger.info(`Renamed ${jsonFile} to ${newJsonFile}`);
+    logger.info(`Renamed ${bname(jsonFile)} to ${bname(newJsonFile)}`);
   }
   if (!files.length) {
     logger.info("Nothing new to roll");
   }
+}
+
+function bname(fp) {
+  return path.basename(fp);
 }
 
 module.exports = {
