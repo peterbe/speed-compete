@@ -12,4 +12,3 @@ yarn run roll-reports
 lighthouse-batch -f sites.txt --html --params "--only-categories=performance --preset perf --throttling.cpuSlowdownMultiplier=6"
 
 yarn run report-reports
-#yarn run merge-summaries report/lighthouse/summary.json
